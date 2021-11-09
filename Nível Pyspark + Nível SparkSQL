@@ -1,0 +1,244 @@
+'/databricks/python3/bin/python -m pip install --upgrade pip'
+
+from pyspark.sql import SparkSession
+import pyspark.sql.functions as F 
+from pyspark.sql.types import StructType,StructField, StringType, IntegerType, FloatType, DoubleType, DateType 
+from pyspark.sql.types import ArrayType, DoubleType, BooleanType
+from pyspark.sql.functions import col,array_contains
+from pyspark.sql.window import Window
+
+	
+schema = StructType() \
+      .add("ID",IntegerType(),True) \
+      .add("Ano_Nascimento", IntegerType(), True) \
+      .add("Nivel_Educacao", StringType(), True) \
+      .add("Estado_Civil", StringType(), True) \
+      .add("Renda", FloatType(), True) \
+      .add("CriancaEmCasa", IntegerType(), True) \
+      .add("AdolescenteEmCasa", IntegerType(), True) \
+      .add("Dt_Cliente", DateType(), True) \
+      .add("Recencia", IntegerType(), True) \
+      .add("MntVinhos", IntegerType(), True) \
+      .add("MntFrutas", IntegerType(), True) \
+      .add("MntProdutosCarne", IntegerType(), True) \
+      .add("MntProdutosPeixe", IntegerType(), True) \
+      .add("MntProdutosDoces", IntegerType(), True) \
+      .add("MntProdutosOuro", IntegerType(), True) \
+      .add("NumComprasOfertas ", IntegerType(), True) \
+      .add("NumComprasOnline", IntegerType(), True) \
+      .add("NumComprasCatalogo", IntegerType(), True) \
+      .add("NumComprasLoja", IntegerType(), True) \
+      .add("NumVisitasOnlineMensais", IntegerType(), True) \
+      .add("CampAceita3", StringType(), True) \
+      .add("CampAceita4", StringType(), True) \
+      .add("CampAceita5", StringType(), True) \
+      .add("CampAceita1", StringType(), True) \
+      .add("CampAceita2", StringType(), True) \
+      .add("Reclamacao", IntegerType(), True) \
+      .add("Resposta", IntegerType(), True)       
+   
+
+df2 = spark.read.format("csv") \
+      .option("delimiter", ",") \
+      .option("header", True) \
+      .option("index", False) \
+      .schema(schema) \
+      .load("/content/drive/MyDrive/dados_soulcode/df_modificado.csv")
+
+df2.printSchema()
+
+#realizando a mudança de nome de 6 colunas
+
+df2 = df2.withColumnRenamed("MntVinhos", "Consumo_Vinhos") \
+         .withColumnRenamed("MntFrutas", "Consumo_Frutas") \
+         .withColumnRenamed("MntProdutosCarne", "Consumo_Carnes") \
+         .withColumnRenamed("MntProdutosPeixe", "Consumo_Peixes") \
+         .withColumnRenamed("MntProdutosDoces", "Consumo_Doces") \
+         .withColumnRenamed("MntProdutosOuro", "Consumo_ProdOuro")
+
+df2.printSchema()
+
+#criação de novas colunas por meio de operações com colunas já existentes
+#coluna "MenoresEmCasa"
+
+df2 = df2.withColumn("MenoresEmCasa", F.col("CriancaEmCasa") + F.col("AdolescenteEmCasa"))
+
+#coluna "CampanhasAceitas"
+
+df2 = df2.withColumn("CampanhasAceitas", F.col("CampAceita3") + F.col("CampAceita4") + F.col("CampAceita5") + F.col("CampAceita1") + F.col("CampAceita2"))
+
+#coluna "ConsumoTotal"
+
+df2 = df2.withColumn("ConsumoTotal", F.col("Consumo_Vinhos") + F.col("Consumo_Frutas") + F.col("Consumo_Carnes") + F.col("Consumo_Peixes") + F.col("Consumo_Doces") + F.col("Consumo_ProdOuro"))
+
+#contagem de ocorrências de linhas com número de Menores em Casa maior ou igual a 1
+
+df2.select("MenoresEmCasa").filter(F.col("MenoresEmCasa") >= 1).count()
+
+#criação de uma lista dinâmica com várias colunas para se utilizar dentro do comando select
+#amostra de ocorrências com número de Menores em Casa maior ou igual a 1
+
+lista_colunas = ["Estado_Civil", "Nivel_Educacao", "Renda", "MenoresEmCasa", "ConsumoTotal"]
+df2.select(lista_colunas).filter(F.col("MenoresEmCasa") >= 1).show()
+
+#cálculo da média, valor máximo e mínimo dentro do campo "Renda"
+
+avg = df2.select(F.avg("Renda")).collect()[0][0]
+max = df2.select(F.max("Renda")).collect()[0][0]
+min = df2.select(F.min("Renda")).collect()[0][0]
+print(f"A média total calculada da Renda é: {avg}.\n O menor valor encontrado é: {min}.\n O maior valor encontrado é {max}")
+
+#agrupamento por Nível de Educação com Média da Renda e Soma de Consumo Total
+
+df2.groupBy(F. col("Nivel_Educacao")).agg(F.avg("Renda").alias("Media_Renda"), F.sum("ConsumoTotal").alias("SomaConsumo")).orderBy("Media_Renda").show(truncate=False)
+
+#uso de função Window com Aggregate, criando coluna row a partir de ordenamento por ID, e colunas avg(média), sum(soma), min e max do Consumo, mostrando-as junto com Nível de Educação e Consumo Total
+
+w0 = Window.orderBy(F.col("ID"))
+(df2.withColumn("row", F.row_number().over(w0))
+   .withColumn("avg", F.avg(F.col("ConsumoTotal")).over(w0))
+   .withColumn("sum",F.sum(F.col("ConsumoTotal")).over(w0))
+   .withColumn("min", F.min(F.col("ConsumoTotal")).over(w0))
+   .withColumn("max", F.max(F.col("ConsumoTotal")).over(w0))
+   .select("row", "Nivel_Educacao", "ConsumoTotal", "avg", "sum", "min", "max"). show()
+ ) 
+
+#função Window rank, estabelecendo um comparativo entre Renda e Nível de Educação dentro de um raqueamento da Renda
+
+w1 = Window.partitionBy(F.col("Nivel_Educacao")).orderBy("Renda")
+(df2.withColumn("rank", F.rank().over(w1))
+    .select("rank", "Nivel_Educacao", "Renda"). show()
+ ) 
+
+>>Nível SparkSQL<<
+
+df3 = (spark.read.format("csv")
+            .option("inferSchema", "true")
+            .option("header", "true")
+            .option("sep", ",")
+            .load("/FileStore/tables/df_modificado.csv")
+            .createOrReplaceTempView("tabela_camp_mkt")
+     ) 
+     
+#amostragem da tabela criada a partir do dataframe
+
+%sql
+SELECT *
+FROM tabela_camp_mkT
+
+#verificação do total de campanhas de marketing aceitas em comparação com nível de educação e renda, ordenadas pelo total de campanhas de marketing aceitas
+
+%sql
+SELECT
+(CampAceita3 + CampAceita4 + CampAceita5 + CampAceita1 + CampAceita2) AS CampMktAceitas,
+Nivel_Educacao,
+Renda
+FROM
+tabela_camp_mkt
+ORDER BY
+CampMktAceitas DESC
+
+#comparação entre quantidade de produtos doces consumidos e quantidade de crianças e adolescentes em casa
+
+SELECT
+MntProdutosDoces,
+(CriancaEmCasa + AdolescenteEmCasa) AS MenoresEmCasa
+FROM
+tabela_camp_mkt
+WHERE
+(CriancaEmCasa + AdolescenteEmCasa) > 0
+ORDER BY
+MntProdutosDoces DESC
+
+#verificação de possível correlação entre idade e quantidade de interações online - definidas pela número de visitas online e número de compras online
+
+%sql
+SELECT
+Ano_Nascimento,
+(NumComprasOnline + NumVisitasOnlineMensais) AS InteracoesOnline
+FROM
+tabela_camp_mkt
+ORDER BY
+InteracoesOnline DESC
+
+#verificação de possível correlação entre idade e nível de educação
+
+%sql
+SELECT
+Nivel_Educacao,
+Ano_Nascimento
+FROM
+tabela_camp_mkt
+ORDER BY
+Ano_Nascimento
+
+#verificação de possível correlação entre idade e data de registro como cliente
+
+%sql
+SELECT
+Ano_Nascimento,
+Dt_Cliente
+FROM
+tabela_camp_mkt
+ORDER BY
+Ano_Nascimento
+
+#verificação da realção entre nível de educação e renda, quando o nível de educação corresponde a "Básica", no dataframe
+
+%sql
+SELECT
+Nivel_Educacao,
+Renda
+FROM
+tabela_camp_mkt
+WHERE
+Nivel_Educacao == 'Basica'
+ORDER BY
+Renda
+
+#verificação de possível correlação entre consumo total e renda
+
+%sql
+SELECT
+(MntVinhos + MntFrutas + MntProdutosCarne + MntProdutosPeixe + MntProdutosDoces + MntProdutosOuro) AS ConsumoTotal,
+Renda
+FROM
+tabela_camp_mkt
+ORDER BY 
+ConsumoTotal DESC
+
+#verificação da relação entre Estado Civil e Renda Média
+
+%sql
+SELECT
+Estado_Civil AS EstadoCivil,
+AVG(Renda) AS RendaMedia
+FROM
+tabela_camp_mkt
+Group BY
+Estado_Civil
+
+#verificação da relação entre crianças e adolescentes em casa e nível de escolaridade
+
+%sql
+SELECT
+(CriancaEmCasa + AdolescenteEmCasa) AS MenoresEmCasa,
+Nivel_Educacao AS Escolaridade
+FROM
+tabela_camp_mkt
+WHERE (CriancaEmCasa + AdolescenteEmCasa) >= 1
+
+#verificação de possível correlação entre Consumo Total, Crianças e Adolescentes em casa, Escolaridade e Renda
+
+%sql
+SELECT
+(MntVinhos + MntFrutas + MntProdutosCarne + MntProdutosPeixe + MntProdutosDoces + MntProdutosOuro) AS ConsumoTotal,
+(CriancaEmCasa + AdolescenteEmCasa) AS MenoresEmCasa,
+Nivel_Educacao AS Escolaridade,
+Renda
+FROM
+tabela_camp_mkt
+WHERE (CriancaEmCasa + AdolescenteEmCasa) >= 1
+ORDER BY 
+ConsumoTotal DESC
+
