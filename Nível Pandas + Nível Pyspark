@@ -1,0 +1,325 @@
+#instalação da biblioteca pandera
+!pip install pandera
+
+import pandas as pd
+import pandera as pa
+
+#carregando o arquivo com o dataset, com o separador "\t"
+df = pd.read_csv("/content/drive/MyDrive/dados_soulcode/marketing_campaign.csv", sep="\t")
+
+#visualizando o dataset
+df
+
+#2240 linhas e 29 colunas
+
+#visualização da classificação dos tipos de dados de cada coluna
+df.dtypes 
+
+#renomeando as colunas, passando do inglês para o português
+
+df1 = df.rename(columns={'Year_Birth': 'Ano_Nascimento',
+                        'Education': 'Nivel_Educacao',
+                        'Marital_Status': 'Estado_Civil',
+                        'Income': 'Renda',
+                        'Kidhome': 'CriancaEmCasa',
+                        'Teenhome': 'AdolescenteEmCasa',
+                        'Dt_Customer': 'Dt_Cliente',
+                        'Recency': 'Recencia',
+                        'MntWines': 'MntVinhos',
+                        'MntFruits': 'MntFrutas',
+                        'MntMeatProducts': 'MntProdutosCarne',
+                        'MntFishProducts': 'MntProdutosPeixe',
+                        'MntSweetProducts': 'MntProdutosDoces',
+                        'MntGoldProds': 'MntProdutosOuro',
+                        'NumDealsPurchases': 'NumComprasOfertas',
+                        'NumWebPurchases': 'NumComprasOnline',
+                        'NumCatalogPurchases': 'NumComprasCatalogo',
+                        'NumStorePurchases': 'NumComprasLoja',
+                        'NumWebVisitsMonth': 'NumVisitasOnlineMensais',
+                        'AcceptedCmp3': 'CampAceita3',
+                        'AcceptedCmp4': 'CampAceita4',
+                        'AcceptedCmp5': 'CampAceita5',
+                        'AcceptedCmp1': 'CampAceita1',
+                        'AcceptedCmp2': 'CampAceita2',
+                        'Complain': 'Reclamacao',
+                        'Z_CostContact': 'Z_ContatoCusto',
+                        'Z_Revenue': 'Z_Renda',
+                        'Response': 'Resposta',
+                        }, inplace=True)
+
+df.head()
+
+#verificação de dados únicos das colunas, buscando valores para tradução
+#essa verificação só será necessária para a coluna Estado_Civil e Nivel_Educacao, 
+#pois as outras são numéricas refentes a ID, datas ou valores float ou inteiros
+
+pd.unique(df['Nivel_Educacao'])
+
+#percorre toda a coluna Nivel_Educacao 
+#para todas as vezes em que encontrar "Graduation", substitui os valores por "Graduacao"
+
+df.loc[df.Nivel_Educacao == 'Graduation', ['Nivel_Educacao']] = 'Graduacao'
+
+#percorre toda a coluna Nivel_Educacao 
+#para todas as vezes em que encontrar "PhD", substitui os valores por "Doutorado"
+
+df.loc[df.Nivel_Educacao == 'PhD', ['Nivel_Educacao']] = 'Doutorado'
+
+#percorre toda a coluna Nivel_Educacao 
+#para todas as vezes em que encontrar "Master", substitui os valores por "Mestrado"
+
+df.loc[df.Nivel_Educacao == 'Master', ['Nivel_Educacao']] = 'Mestrado'
+
+#percorre toda a coluna Nivel_Educacao 
+#para todas as vezes em que encontrar "Basic", substitui os valores por "Basica"
+
+df.loc[df.Nivel_Educacao == 'Basic', ['Nivel_Educacao']] = 'Basica'
+
+#percorre toda a coluna Nivel_Educacao 
+#para todas as vezes em que encontrar "2n Cycle", substitui os valores por "Mestrando(a)"
+
+df.loc[df.Nivel_Educacao == '2n Cycle', ['Nivel_Educacao']] = 'Mestrando(a)'
+
+#checagem de valores da coluna Nivel_Educacao pós alteraçoes
+
+pd.unique(df['Nivel_Educacao'])
+
+#verificação de dados únicos das colunas, buscando valores para tradução
+
+pd.unique(df['Estado_Civil'])
+
+#estado civil colocado como 'Alone' - 'Sozinho(a)', 'Absurd' - 'Absurdo' e 'YOLO' - 'CURTIÇÃO' não são válidos e serão substituídos por NA mais adiante 
+
+#percorre toda a coluna Estado_Civil 
+#para todas as vezes em que encontrar "Single", substitui os valores por "Solteiro(a)"
+
+df.loc[df.Estado_Civil == 'Single', ['Estado_Civil']] = 'Solteiro(a)'
+
+#percorre toda a coluna Estado_Civil 
+#para todas as vezes em que encontrar "Together", substitui os valores por "Ajuntado(a)"
+
+df.loc[df.Estado_Civil == 'Together', ['Estado_Civil']] = 'Ajuntado(a)'
+
+#percorre toda a coluna Estado_Civil 
+#para todas as vezes em que encontrar "Married", substitui os valores por "Casado(a)"
+
+df.loc[df.Estado_Civil == 'Married', ['Estado_Civil']] = 'Casado(a)'
+
+#percorre toda a coluna Estado_Civil 
+#para todas as vezes em que encontrar "Divorced", substitui os valores por "Divorciado(a)"
+
+df.loc[df.Estado_Civil == 'Divorced', ['Estado_Civil']] = 'Divorciado(a)'
+
+#percorre toda a coluna Estado_Civil 
+#para todas as vezes em que encontrar "Widow", substitui os valores por "Viúva"
+
+df.loc[df.Estado_Civil == 'Widow', ['Estado_Civil']] = 'Viúva'
+
+#checagem de valores da coluna Estado_Civil pós alteraçoes
+
+pd.unique(df['Estado_Civil'])
+
+#verificação de inconsistências
+
+print(pd.unique(df['Z_ContatoCusto']))
+print(pd.unique(df['Z_Renda']))
+
+#tanto a coluna Z_ContatoCusto quanto a coluna Z_Renda possuem cada qual um único valor 
+#para a coluna inteira, não sendo úteis para análises e podendo ser descartadas
+
+#ação - estas colunas serão descartadas
+
+df.drop(['Z_ContatoCusto'], axis=1, inplace=True)
+
+df.drop(['Z_Renda'], axis=1, inplace=True)
+
+#verificação de inconsistências parte 2
+
+pd.unique(df['Ano_Nascimento'])
+
+#há registros de clientes com ano de nascimento 1893, 1899 e 1900 - alta improbabilidade destes dados estarem corretos, 
+#pois isto implicaria em pessoas com 120 anos+ estarem ativamente fazendo cadastros em plataformas de compras online
+
+#criação de filtro para checagem das linhas onde a data de nascimento é muito antiga
+
+filter0 = df.Ano_Nascimento.isin(['1893','1899', '1900'])
+
+#checagem das linhas onde a data de nascimento é muito antiga
+
+#conclusão - 3 linhas, duas mostram criança ou adolescente em casa, o que gera estranheza, 
+#e a terceira mostra grande atividade tanto online quanto na loja física, também causando estranheza
+
+#ação - estas linhas serão excluídas
+
+df.loc[filter0]
+
+df.drop([192, 239, 339], inplace=True)
+
+#substituir valores em todo o dataframe
+df.replace(['Alone', 'YOLO', 'Absurd'], pd.NA, inplace=True)
+
+#verificação de valores nulos/NA
+
+df.isna().sum()
+
+#criação de filtro para checagem das linhas onde o valor Renda é nulo
+
+filter = df.Renda.isnull()
+
+#checagem das linhas onde o valor Renda é nulo
+#conclusão - Renda não foi declarada para estes clientes, mas os demais dados estão válidos
+
+#ação - nenhuma, relativamente a estes dados
+
+df.loc[filter]
+
+#criando um novo df
+
+df.set_index("ID", inplace = True)
+
+df_modificado = df
+
+df_modificado.head(5)
+
+#criando um df no pandas e salvando no drive
+
+df_modificado.to_csv("/content/drive/MyDrive/dados_soulcode/df_modificado.csv")
+
+Nível Pyspark
+
+```
+Deverá ser montada a estrutura do DataFrame utilizando o StructType
+Realizar a mudança de nome de pelo menos 2 colunas
+Deverá criar pelo menos duas novas colunas contendo alguma informação relevante sobre as outras colunas já existentes(Use a sua capacidade analítica)
+Deverá utilizar filtros, ordenação e agrupamento, trazendo dados relevantes para o negócio em questão. (Use a sua capacidade analítica)
+Utilizar pelo menos duas Window Functions
+```
+
+
+
+
+#instalação da biblioteca Pyspark
+
+!pip install pyspark
+
+#importação de módulos e de funções específicas dentro de módulos da biblioteca Pyspark
+
+from pyspark.sql import SparkSession
+import pyspark.sql.functions as F 
+from pyspark.sql.types import StructType,StructField, StringType, IntegerType, FloatType, DoubleType, DateType 
+from pyspark.sql.types import ArrayType, DoubleType, BooleanType
+from pyspark.sql.functions import col,array_contains
+from pyspark.sql.window import Window
+
+#configurar nossa SparkSession
+
+spark = SparkSession.builder\
+        .master("local")\
+        .appName("dataframe_nara")\
+        .config("spark.ui.port","4050")\
+        .getOrCreate()
+
+#importando csv do Pandas p/ o PySpark
+#criando o Schema com StructType
+	
+schema = StructType() \
+      .add("ID",IntegerType(),True) \
+      .add("Ano_Nascimento", IntegerType(), True) \
+      .add("Nivel_Educacao", StringType(), True) \
+      .add("Estado_Civil", StringType(), True) \
+      .add("Renda", FloatType(), True) \
+      .add("CriancaEmCasa", IntegerType(), True) \
+      .add("AdolescenteEmCasa", IntegerType(), True) \
+      .add("Dt_Cliente", DateType(), True) \
+      .add("Recencia", IntegerType(), True) \
+      .add("MntVinhos", IntegerType(), True) \
+      .add("MntFrutas", IntegerType(), True) \
+      .add("MntProdutosCarne", IntegerType(), True) \
+      .add("MntProdutosPeixe", IntegerType(), True) \
+      .add("MntProdutosDoces", IntegerType(), True) \
+      .add("MntProdutosOuro", IntegerType(), True) \
+      .add("NumComprasOfertas ", IntegerType(), True) \
+      .add("NumComprasOnline", IntegerType(), True) \
+      .add("NumComprasCatalogo", IntegerType(), True) \
+      .add("NumComprasLoja", IntegerType(), True) \
+      .add("NumVisitasOnlineMensais", IntegerType(), True) \
+      .add("CampAceita3", StringType(), True) \
+      .add("CampAceita4", StringType(), True) \
+      .add("CampAceita5", StringType(), True) \
+      .add("CampAceita1", StringType(), True) \
+      .add("CampAceita2", StringType(), True) \
+      .add("Reclamacao", IntegerType(), True) \
+      .add("Resposta", IntegerType(), True)       
+   
+
+df2 = spark.read.format("csv") \
+      .option("delimiter", ",") \
+      .option("header", True) \
+      .option("index", False) \
+      .schema(schema) \
+      .load("/content/drive/MyDrive/dados_soulcode/df_modificado.csv")
+
+df2.printSchema()
+
+#realizando a mudança de nome de 6 colunas
+
+df2 = df2.withColumnRenamed("MntVinhos", "Consumo_Vinhos") \
+         .withColumnRenamed("MntFrutas", "Consumo_Frutas") \
+         .withColumnRenamed("MntProdutosCarne", "Consumo_Carnes") \
+         .withColumnRenamed("MntProdutosPeixe", "Consumo_Peixes") \
+         .withColumnRenamed("MntProdutosDoces", "Consumo_Doces") \
+         .withColumnRenamed("MntProdutosOuro", "Consumo_ProdOuro")
+
+df2.printSchema()
+
+#criação de novas colunas por meio de operações com colunas já existentes
+#coluna "MenoresEmCasa"
+
+df2 = df2.withColumn("MenoresEmCasa", F.col("CriancaEmCasa") + F.col("AdolescenteEmCasa"))
+
+#coluna "CampanhasAceitas"
+
+df2 = df2.withColumn("CampanhasAceitas", F.col("CampAceita3") + F.col("CampAceita4") + F.col("CampAceita5") + F.col("CampAceita1") + F.col("CampAceita2"))
+
+#coluna "ConsumoTotal"
+
+df2 = df2.withColumn("ConsumoTotal", F.col("Consumo_Vinhos") + F.col("Consumo_Frutas") + F.col("Consumo_Carnes") + F.col("Consumo_Peixes") + F.col("Consumo_Doces") + F.col("Consumo_ProdOuro"))
+
+#contagem de ocorrências de linhas com número de Menores em Casa maior ou igual a 1
+
+df2.select("MenoresEmCasa").filter(F.col("MenoresEmCasa") >= 1).count()
+
+#criação de uma lista dinâmica com várias colunas para se utilizar dentro do comando select
+#amostra de ocorrências com número de Menores em Casa maior ou igual a 1
+
+lista_colunas = ["Estado_Civil", "Nivel_Educacao", "Renda", "MenoresEmCasa", "ConsumoTotal"]
+df2.select(lista_colunas).filter(F.col("MenoresEmCasa") >= 1).show()
+
+#cálculo da média, valor máximo e mínimo dentro do campo "Renda"
+
+avg = df2.select(F.avg("Renda")).collect()[0][0]
+max = df2.select(F.max("Renda")).collect()[0][0]
+min = df2.select(F.min("Renda")).collect()[0][0]
+print(f"A média total calculada da Renda é: {avg}.\n O menor valor encontrado é: {min}.\n O maior valor encontrado é {max}")
+
+#agrupamento por Nível de Educação com Média da Renda e Soma de Consumo Total
+
+df2.groupBy(F. col("Nivel_Educacao")).agg(F.avg("Renda").alias("Media_Renda"), F.sum("ConsumoTotal").alias("SomaConsumo")).orderBy("Media_Renda").show(truncate=False)
+
+#uso de função Window com Aggregate, criando coluna row a partir de ordenamento por ID, e colunas avg(média), sum(soma), min e max do Consumo, mostrando-as junto com Nível de Educação e Consumo Total
+
+w0 = Window.orderBy(F.col("ID"))
+(df2.withColumn("row", F.row_number().over(w0))
+   .withColumn("avg", F.avg(F.col("ConsumoTotal")).over(w0))
+   .withColumn("sum",F.sum(F.col("ConsumoTotal")).over(w0))
+   .withColumn("min", F.min(F.col("ConsumoTotal")).over(w0))
+   .withColumn("max", F.max(F.col("ConsumoTotal")).over(w0))
+   .select("row", "Nivel_Educacao", "ConsumoTotal", "avg", "sum", "min", "max"). show()
+ ) 
+
+#função Window rank, estabelecendo um comparativo entre Renda e Nível de Educação dentro de um raqueamento da Renda
+
+w1 = Window.partitionBy(F.col("Nivel_Educacao")).orderBy("Renda")
+(df2.withColumn("rank", F.rank().over(w1))
+    .select("rank", "Nivel_Educacao", "Renda"). show()
+ ) 
